@@ -6,8 +6,9 @@ class ItemBase(SQLModel):
     description: Optional[str] = None
 
 class Item(ItemBase, table=True):  # Table model
+    __tablename__ = "items"  # Explicitly set the table name
     id: Optional[int] = Field(default=None, primary_key=True)
-    owner_id: int = Field(foreign_key="user.id")
+    owner_id: int = Field(foreign_key="users.id")
 
 class ItemCreate(ItemBase):  # Schema for creating an item
     owner_id: int
