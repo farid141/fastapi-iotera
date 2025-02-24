@@ -1,6 +1,11 @@
 from sqlmodel import Session, SQLModel, create_engine
 
-DATABASE_URL = "mysql+mysqlconnector://root:@localhost:3306/iotera-fastapi"
+from dotenv import load_dotenv
+import os
+
+load_dotenv()
+
+DATABASE_URL = os.getenv("DATABASE_URL")
 engine = create_engine(DATABASE_URL, echo=True)
 
 def get_db():
