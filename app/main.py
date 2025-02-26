@@ -1,5 +1,4 @@
 from fastapi import FastAPI
-from app.db.session import init_db
 from app.routers import users, items, transactions
 from app.auth import routes as auth_routes
 import uvicorn

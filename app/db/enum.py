@@ -1,14 +1,18 @@
 from enum import Enum
-from sqlmodel import Session, select, func
+from sqlmodel import Session, select
 from app.db.session import engine
 from app.db.models.transaction import Transaction
 
 def fetch_distinct_values_from_db(column) -> list[str]:
     """Fetch distinct values from a specific column in the Transaction table."""
-    with Session(engine) as session:
-        statement = select(column).distinct()
-        results = session.exec(statement).all()
-        return results
+    try:
+        with Session(engine) as session:
+            statement = select(column).distinct()
+            results = session.exec(statement).all()
+            return results
+    except:
+        # Handle the case where the table or column doesn't exist
+        return []
 
 def create_enum(enum_name: str, column) -> Enum:
     """Dynamically create an Enum class based on distinct values from a database column."""
