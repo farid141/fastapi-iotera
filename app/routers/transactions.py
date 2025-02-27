@@ -1,14 +1,30 @@
 from fastapi import APIRouter, Depends, Query, HTTPException
 from sqlmodel import Session, select, func
+from typing import Annotated
 from datetime import datetime
 import requests
 
 from app.db.session import get_db, engine
+from app.db.utils import inspect_table
 from app.auth.dependencies import get_current_user
-from app.db.models.transaction import Transaction
+from app.db.models.transaction import Transaction, TransactionRead
 from ..db.enum import DeviceIdsEnum, PaymentStatusesEnum, TransactionStatusesEnum, PaymentMethodEnum
 
 router = APIRouter()
+
+@router.get("/", response_model=list[TransactionRead])
+def get_transaction(
+    db: Session = Depends(get_db),
+    offset: int = 0,
+    limit: Annotated[int, Query(le=100)] = 100,
+    ):
+    statement = select(Transaction).offset(offset).limit(limit)
+    results = db.exec(statement).all()
+
+    if not results:
+        raise HTTPException(status_code=404, detail="Transaction not found")
+    
+    return results
 
 @router.get("/count_and_amount_by_status")
 def count_and_amount_by_status(
@@ -79,7 +95,7 @@ def payment_method_and_status_by_payment(session: Session = Depends(get_db), cur
 
     return sorted_data
                     
-@router.get("/sync_data")
+@router.post("/sync_data")
 def sync_data(session: Session = Depends(get_db)):
     # Request to the API
     response = requests.post(
@@ -121,17 +137,21 @@ def sync_data(session: Session = Depends(get_db)):
 @router.post("/create_table")
 def create_transaction_table(db: Session = Depends(get_db)):
     try:
+        if inspect_table(Transaction.__tablename__):
+            raise Exception("Table already exists!")
         Transaction.metadata.create_all(engine, [Transaction.__table__], False)
         
         return {"message": "Transaction table created successfully."}
     except Exception as e:
-        raise HTTPException(status_code=500, detail="Transaction table already exists!")
+        raise HTTPException(status_code=500, detail=f"Create table fails!\n{str(e)}")
     
-@router.post("/drop_table")
+@router.delete("/drop_table")
 def drop_transaction_table(db: Session = Depends(get_db)):
     try:
+        if not inspect_table(Transaction.__tablename__):
+            raise Exception("Table doesn't exists!")
         Transaction.metadata.drop_all(engine, [Transaction.__table__], False)
         
         return {"message": "Transaction table dropped successfully."}
     except Exception as e:
-        raise HTTPException(status_code=500, detail="Transaction table doesn't exists")
+        raise HTTPException(status_code=500, detail="Drop table fails!\n{str(e)}")
