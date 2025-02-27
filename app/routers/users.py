@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session, select
-from app.db.session import get_db
+from app.db.session import get_db, engine
 from app.db.models.user import UserCreate, UserRead, User
 from app.db.models.item import Item
 
@@ -30,3 +30,21 @@ def read_user(user_id: int, db: Session = Depends(get_db)):
         "name": user.name,
         "items": [{"id": item.id, "name": item.name, "description":item.description} for item in items]
     }
+
+@router.post("/create_table")
+def create_user_table(db: Session = Depends(get_db)):
+    try:
+        User.metadata.create_all(engine, [User.__table__], False)
+        
+        return {"message": "User table created successfully."}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="User table already exists!")
+
+@router.post("/drop_table")
+def drop_user_table(db: Session = Depends(get_db)):
+    try:
+        User.metadata.drop_all(engine, [User.__table__], False)
+        
+        return {"message": "User table dropped successfully."}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="User table doesn't exists")

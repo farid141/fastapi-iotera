@@ -1,9 +1,8 @@
 from sqlmodel import SQLModel, Field
 from typing import Optional
-
 class UserBase(SQLModel):
-    name: str
-    email: str
+    name: str = Field(max_length=50)
+    email: str = Field(max_length=50)
 
 class User(UserBase, table=True):  # Table model
     __tablename__ = "users"  # Explicitly set the table name

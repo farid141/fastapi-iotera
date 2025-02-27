@@ -1,10 +1,9 @@
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, HTTPException
 from sqlmodel import Session, select, func
 from datetime import datetime
 import requests
-from enum import Enum
 
-from app.db.session import get_db
+from app.db.session import get_db, engine
 from app.auth.dependencies import get_current_user
 from app.db.models.transaction import Transaction
 from ..db.enum import DeviceIdsEnum, PaymentStatusesEnum, TransactionStatusesEnum, PaymentMethodEnum
@@ -118,3 +117,21 @@ def sync_data(session: Session = Depends(get_db)):
     # Insert transactions into the database
     session.add_all(to_insert)
     session.commit()
+
+@router.post("/create_table")
+def create_transaction_table(db: Session = Depends(get_db)):
+    try:
+        Transaction.metadata.create_all(engine, [Transaction.__table__], False)
+        
+        return {"message": "Transaction table created successfully."}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="Transaction table already exists!")
+    
+@router.post("/drop_table")
+def drop_transaction_table(db: Session = Depends(get_db)):
+    try:
+        Transaction.metadata.drop_all(engine, [Transaction.__table__], False)
+        
+        return {"message": "Transaction table dropped successfully."}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="Transaction table doesn't exists")

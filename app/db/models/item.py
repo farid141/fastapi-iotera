@@ -2,8 +2,8 @@ from sqlmodel import SQLModel, Field
 from typing import Optional
 
 class ItemBase(SQLModel):
-    name: str
-    description: Optional[str] = None
+    name: str = Field(max_length=50)
+    description: str|None = Field(default=None, max_length=50)
 
 class Item(ItemBase, table=True):  # Table model
     __tablename__ = "items"  # Explicitly set the table name
