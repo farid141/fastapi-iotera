@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlmodel import Session, select
+from sqlmodel import Session, select, Sequence, insert
 from typing import Annotated
 
 from app.db.session import get_db, engine
@@ -9,13 +9,25 @@ from app.db.models.user import User
 
 router = APIRouter()
 
-@router.post("/", response_model=ItemRead)
+@router.post("/")
 def create_new_item(item: ItemCreate, db: Session = Depends(get_db)):
-    db_item = Item.model_validate(item)
-    db.add(db_item)
+    db_item = Item.model_validate(item).__dict__
+
+    last_seq = db.exec(select(Item).order_by(Item.seq_id.desc()).limit(1)).first()
+    last_seq = 0 if last_seq is None else last_seq.seq_id
+    last_seq+=1
+
+    dict_item = {
+        "seq_id": last_seq,
+        "id": F"TEST_{last_seq}",
+        "owner_id": db_item["owner_id"],
+        "name": db_item["name"],
+        "description": db_item["description"],
+    }
+
+    db.exec(insert(Item).values(dict_item))
     db.commit()
-    db.refresh(db_item)
-    return db_item
+    return dict_item
 
 @router.get("/{item_id}")
 def read_item(item_id: int, db: Session = Depends(get_db)):
