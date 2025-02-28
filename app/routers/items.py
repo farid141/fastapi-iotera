@@ -3,7 +3,7 @@ from sqlmodel import Session, select
 from typing import Annotated
 
 from app.db.session import get_db, engine
-from app.db.utils import create_sequence, drop_sequence, inspect_table
+from app.db.utils import next_sequence, create_sequence, drop_sequence, inspect_table
 from app.db.models.item import ItemCreate, ItemRead, Item, ItemUpdate
 from app.db.models.user import User
 
@@ -12,6 +12,12 @@ router = APIRouter()
 @router.post("/", response_model=ItemRead)
 def create_new_item(item: ItemCreate, db: Session = Depends(get_db)):
     db_item = Item.model_validate(item)
+    db_item.id = next_sequence(
+        db=db,
+        prefix="ITM",
+        sequence_name='items_id_seq'
+    )
+
     db.add(db_item)
     db.commit()
     db.refresh(db_item)

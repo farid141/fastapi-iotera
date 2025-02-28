@@ -1,10 +1,12 @@
-from sqlmodel import Session, text, inspect
+from sqlmodel import Session, select, inspect, insert, delete, update
+
 from .session import engine
+from .models.sequence import Sequence
 
 def create_sequence(db: Session, sequence_name: str):
-    """Creates a sequence in the database if it does not exist."""
     try:
-        db.exec(text(f"CREATE SEQUENCE {sequence_name} START WITH 1 INCREMENT BY 1"))
+        db.exec(insert(Sequence).values(name=sequence_name, value=0))
+        db.commit()
     except Exception:
         pass
 
@@ -14,8 +16,23 @@ def inspect_table(table_name:str):
     return table_name in inspector.get_table_names()
 
 def drop_sequence(db:Session, sequence_name:str):
-    """Drops a sequence in the database if it exist."""
     try:
-        db.exec(text(f"DROP SEQUENCE {sequence_name}"))
+        db.exec(delete(Sequence).where(Sequence.name == sequence_name))
+        db.commit()
     except Exception:
         pass
+
+def next_sequence(db:Session, prefix:str, sequence_name:str)->str:
+    stmt = select(Sequence.value).where(Sequence.name == sequence_name)
+    result = db.exec(stmt).first()
+    
+    last_seq_id = result + 1 if result else 1
+
+    # Update the sequence value in the database
+    db.exec(
+        update(Sequence)
+        .where(Sequence.name == sequence_name)
+        .values(value=last_seq_id)
+    )
+
+    return f"{prefix}_{last_seq_id:04d}"
