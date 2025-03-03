@@ -1,9 +1,8 @@
 from sqlmodel import Session, select, inspect, insert, delete, update, SQLModel
-from fastapi import Depends
 
-from .session import engine
-from app.db.session import redis_client, get_db
-from .models.sequence import Sequence
+from app.db.session import engine
+from app.db.session import redis_client
+from app.db.models.sequence import Sequence
 
 def inspect_table(table_name:str):
     """Check if table exists"""
