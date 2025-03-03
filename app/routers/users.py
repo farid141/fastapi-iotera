@@ -1,72 +1,61 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlmodel import Session, select, Sequence
+from sqlmodel import Session
 from typing import Annotated
 
 from app.db.session import get_db, engine
-from app.db.utils import next_sequence, create_sequence, drop_sequence, inspect_table
+from app.db.utils import drop_table, create_table
 from app.db.models.user import UserCreate, UserRead, UserUpdate, User
-from app.db.models.item import Item
+
+from app.services.user import UserService
+from app.db.repositories.user import UserRepository
 
 router = APIRouter()
 
-@router.post("/", response_model=UserRead)
-def create_new_user(user: UserCreate, db: Session = Depends(get_db)):
-    db_user = User.model_validate(user)
-    db_user.id = next_sequence(
-        db=db,
-        prefix="USR",
-        sequence_name='users_id_seq'
-    )
-    db.add(db_user)
-    db.commit()
-    db.refresh(db_user)
-    return db_user
-
-@router.get("/{user_id}")
-def read_user(user_id: str, db: Session = Depends(get_db)):
-    statement = select(User).where(User.id == user_id)
-    result = db.exec(statement).all()
-
-    if not result:
-        raise HTTPException(status_code=404, detail="User not found")
-    
-    return result
+def get_user_service(session: Session = Depends(get_db))->UserService:
+    user_repository = UserRepository(session)
+    return UserService(user_repository)
 
 @router.get("/", response_model=list[UserRead])
-def get_user(
-    db: Session = Depends(get_db),
+def get_users(
+    user_service:UserService = Depends(get_user_service),
     offset: int = 0,
     limit: Annotated[int, Query(le=100)] = 100,
     ):
-    statement = select(User).offset(offset).limit(limit)
-    results = db.exec(statement).all()
+    results = user_service.get_users(limit, offset)
 
     if not results:
         raise HTTPException(status_code=404, detail="User not found")
     
     return results
 
-@router.patch("/{user_id}", response_model=UserRead)
-def update_user(user_id: str, user: UserUpdate, db:Session=Depends(get_db)):
-    user_db = db.get(User, user_id)
-    if not user_db:
+@router.get("/{user_id}")
+def read_user(user_id: str, user_service:UserService = Depends(get_user_service)):
+    result = user_service.get_user_by_id(user_id)
+
+    if not result:
         raise HTTPException(status_code=404, detail="User not found")
     
-    user_data = user.model_dump(exclude_unset=True) # mengekstrak field kosong dan default value dari request body
-    user_db.sqlmodel_update(user_data)  # validasi field ke table model
-    db.add(user_db)
-    db.commit()
-    db.refresh(user_db)
-    return user_db
+    return result
+
+@router.post("/", response_model=UserRead)
+def create_new_user(user: UserCreate, user_service:UserService = Depends(get_user_service)):
+    result = user_service.create_user(User.model_validate(user))
+    
+    return result
+
+@router.patch("/{user_id}", response_model=UserRead)
+def update_user(user_id: str, user: UserUpdate, user_service:UserService = Depends(get_user_service)):
+    result = user_service.update_user(
+        user_id, 
+        user.model_dump(exclude_unset=True)
+    )
+    
+    return result
 
 @router.post("/create_table")
 def create_user_table(db:Session=Depends(get_db)):
     try:
-        if inspect_table(User.__tablename__):
-            raise Exception("Table already exists!")
-
-        create_sequence(db, "users_id_seq")
-        User.metadata.create_all(engine, [User.__table__], False)
+        create_table(db, engine, User, "users_id_sec")
         
         return {"message": "User table created successfully."}
     except Exception as e:
@@ -75,11 +64,7 @@ def create_user_table(db:Session=Depends(get_db)):
 @router.delete("/drop_table")
 def drop_user_table(db:Session=Depends(get_db)):
     try:
-        if not inspect_table(User.__tablename__):
-            raise Exception("Table doesn't exists!")
-
-        drop_sequence(db, "users_id_seq")
-        User.metadata.drop_all(engine, [User.__table__], False)
+        drop_table(db, engine, User, "users_id_sec")
         
         return {"message": "User table dropped successfully."}
     except Exception as e:
