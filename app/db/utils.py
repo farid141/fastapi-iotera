@@ -4,10 +4,10 @@ from app.db.session import engine
 from app.db.session import redis_client
 from app.db.models.sequence import Sequence
 
-def inspect_table(table_name:str):
+def inspect_table(table_name:str, schema:str):
     """Check if table exists"""
     inspector = inspect(engine)
-    return table_name in inspector.get_table_names()
+    return table_name in inspector.get_table_names(schema)
 
 def create_sequence(db: Session, sequence_name: str):
     try:
@@ -38,16 +38,16 @@ def next_sequence(db:Session, prefix:str, sequence_name:str)->str:
 
     return f"{prefix}_{last_seq_id:04d}"
 
-def drop_table(db, engine, model:SQLModel, sequence):
-    if not inspect_table(model.__tablename__):
+def drop_table(db, engine, model:SQLModel, sequence, schema):
+    if not inspect_table(model.__tablename__, schema):
         raise Exception("Table doesn't exists!")
     
     if sequence:
         drop_sequence(db, sequence)
     model.metadata.drop_all(engine, [model.__table__], False)
 
-def create_table(db, engine, model:SQLModel, sequence):
-    if not inspect_table(model.__tablename__):
+def create_table(db, engine, model:SQLModel, sequence, schema):
+    if inspect_table(model.__tablename__, schema):
         raise Exception("Table already exists!")
     
     if sequence:

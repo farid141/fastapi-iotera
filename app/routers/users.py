@@ -53,18 +53,24 @@ def update_user(user_id: str, user: UserUpdate, user_service:UserService = Depen
     return result
 
 @router.post("/create_table")
-def create_user_table(db:Session=Depends(get_db)):
+def create_user_table(
+    db:Session=Depends(get_db),
+    schema:str = Query(description="Schema database", default="C##FARID")
+    ):
     try:
-        create_table(db, engine, User, "users_id_sec")
+        create_table(db, engine, User, "users_id_seq", schema)
         
         return {"message": "User table created successfully."}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Create table fails!\n{str(e)}")
 
 @router.delete("/drop_table")
-def drop_user_table(db:Session=Depends(get_db)):
+def drop_user_table(
+    db:Session=Depends(get_db),
+    schema:str = Query(description="Schema database", default="C##FARID")
+    ):
     try:
-        drop_table(db, engine, User, "users_id_sec")
+        drop_table(db, engine, User, "users_id_seq", schema)
         
         return {"message": "User table dropped successfully."}
     except Exception as e:

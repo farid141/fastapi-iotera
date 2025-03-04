@@ -15,9 +15,12 @@ class TransactionBase(SQLModel):
     payment_method:str = Field(max_length=50)
     firebase_timestamp:datetime
 
-class Transaction(TransactionBase, table=True):  # Table model
-    __tablename__ = "transactions"  # Explicitly set the table name
+class Transaction(TransactionBase, table=True):
+    __tablename__ = "transactions"
     uuid: Optional[str] = Field(default=None, primary_key=True, max_length=50)
 
-class TransactionRead(TransactionBase):  # Schema for reading a transaction
+class TransactionRead(TransactionBase):
     uuid: str
+
+class TransactionCreate(TransactionBase):
+    pass

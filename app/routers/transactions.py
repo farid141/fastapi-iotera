@@ -5,21 +5,36 @@ from datetime import datetime
 import requests
 
 from app.db.session import get_db, engine
-from app.db.utils import inspect_table
+from app.db.utils import create_table, drop_table
 from app.auth.dependencies import get_current_user
-from app.db.models.transaction import Transaction, TransactionRead
-from ..db.enum import DeviceIdsEnum, PaymentStatusesEnum, TransactionStatusesEnum, PaymentMethodEnum
+from app.services.transaction import TransactionService
+from app.db.repositories.transaction import TransactionRepository
+from app.db.models.transaction import Transaction, TransactionRead, TransactionCreate
+from app.db.enum import DeviceIdsEnum, PaymentStatusesEnum, TransactionStatusesEnum, PaymentMethodEnum
 
 router = APIRouter()
 
+def get_transaction_service(session: Session = Depends(get_db))->TransactionService:
+    transaction_repository = TransactionRepository(session)
+    return TransactionService(transaction_repository)
+
+@router.post("/", response_model=TransactionRead)
+def create_transaction(
+    transaction: TransactionCreate, 
+    transaction_service:TransactionService = Depends(get_transaction_service),
+    schema:str = Query(description="Schema database", default="C##FARID")
+    ):
+    result = transaction_service.create_transaction(schema, Transaction.model_validate(transaction))
+    
+    return result
+
 @router.get("/", response_model=list[TransactionRead])
 def get_transaction(
-    db: Session = Depends(get_db),
+    transaction_service:TransactionService = Depends(get_transaction_service),
     offset: int = 0,
     limit: Annotated[int, Query(le=100)] = 100,
     ):
-    statement = select(Transaction).offset(offset).limit(limit)
-    results = db.exec(statement).all()
+    results = transaction_service.get_transactions(limit, offset)
 
     if not results:
         raise HTTPException(status_code=404, detail="Transaction not found")
@@ -135,23 +150,25 @@ def sync_data(session: Session = Depends(get_db)):
     session.commit()
 
 @router.post("/create_table")
-def create_transaction_table(db: Session = Depends(get_db)):
+def create_transaction_table(
+    db: Session = Depends(get_db), 
+    schema:str = Query(description="Schema database", default="C##FARID")
+    ):
     try:
-        if inspect_table(Transaction.__tablename__):
-            raise Exception("Table already exists!")
-        Transaction.metadata.create_all(engine, [Transaction.__table__], False)
+        create_table(db, engine, Transaction, None, schema)
         
         return {"message": "Transaction table created successfully."}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Create table fails!\n{str(e)}")
     
 @router.delete("/drop_table")
-def drop_transaction_table(db: Session = Depends(get_db)):
+def drop_transaction_table(
+    db: Session = Depends(get_db),
+    schema:str = Query(description="Schema database", default="C##FARID")
+    ):
     try:
-        if not inspect_table(Transaction.__tablename__):
-            raise Exception("Table doesn't exists!")
-        Transaction.metadata.drop_all(engine, [Transaction.__table__], False)
+        drop_table(db, engine, Transaction, None, schema)
         
         return {"message": "Transaction table dropped successfully."}
     except Exception as e:
-        raise HTTPException(status_code=500, detail="Drop table fails!\n{str(e)}")
+        raise HTTPException(status_code=500, detail=f"Drop table fails!\n{str(e)}")

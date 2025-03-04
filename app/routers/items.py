@@ -52,18 +52,24 @@ def update_item(item_id: str, item: ItemUpdate, item_service:ItemService = Depen
     return result
     
 @router.post("/create_table")
-def create_item_table(db:Session=Depends(get_db)):
+def create_item_table(
+    db:Session=Depends(get_db),
+    schema:str = Query(description="Schema database", default="C##FARID")
+    ):
     try:
-        create_table(db, engine, Item, "items_id_sec")
+        create_table(db, engine, Item, "items_id_seq", schema)
         
         return {"message": "Item table created successfully."}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Create table fails!\n{str(e)}")
 
 @router.delete("/drop_table")
-def drop_item_table(db:Session=Depends(get_db)):
+def drop_item_table(
+    db:Session=Depends(get_db),
+    schema:str = Query(description="Schema database", default="C##FARID")
+    ):
     try:
-        drop_table(db, engine, Item, "items_id_sec")
+        drop_table(db, engine, Item, "items_id_seq", schema)
 
         return {"message": "Item table dropped successfully."}
     except Exception as e:
